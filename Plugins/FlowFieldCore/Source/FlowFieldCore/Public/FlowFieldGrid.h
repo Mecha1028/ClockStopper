@@ -1,52 +1,41 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "FlowFieldGrid.generated.h"
 
 /**
  *
  */
 
-struct FChunkID {
-	FIntPoint coordinates;
-	
-	FChunkID(FVector position, float chunkSize) {
-		coordinates.X = FMath::FloorToInt(position.X / chunkSize);
-		coordinates.Y = FMath::FloorToInt(position.Y / chunkSize);
-	}
-
-	bool operator == (const FChunkID & other) const {
-		return coordinates == other.coordinates;
-	}
-
-	friend uint32 GetTypeHash(const FChunkID& ID) {
-		return GetTypeHash(ID.coordinates);
-	}
+USTRUCT(BlueprintType)
+struct FlowFieldCell {
+	GENERATED_BODY()
+	UPROPERTY()
+	int32 CellCost = 1;
+	UPROPERTY()
+	int32 Integration = MAX_uint16;
+	UPROPERTY()
+	FVector2D FlowVector = FVector2D::ZeroVector;
 };
 
-struct FChunk {
-	FChunkID ID;
-	FIntPoint Resolution;
-	TArray<FVector> FlowField;
-	
-	int32 Index(int32 x, int32 y) const {
-		return y * Resolution.X + x;
-	}
-};
+class UWorld;
+class AActor;
 
 class FLOWFIELDCORE_API FlowFieldGrid {
 public:
-	void Init(float InChunkSize, FIntPoint InCellsPerChunk);
-	void Rebuild();
-	FChunkID WorldToChunkID(const FVector& WorldPos) const;
-	const FChunk* FindChunk(const FChunkID& ID) const;
+	TArray<FlowFieldCell> Cells;
 
+	int32 GridWidth = 0;
+	int32 GridHeight = 0;
+	float CellSize = 100.f;
+	
+	void GenerateGrid();
 
-	float ChunkSize = 1000.0f;
-	FIntPoint CellsPerChunk = { 32,32 };
-
-	TMap<FChunkID, FChunk> Chunks;
-
-	float GetCellSize() const {
-		return ChunkSize / CellsPerChunk.X;
+	int32 ToIndex(int32 X, int32 Y) const {
+		return Y * GridWidth + X;
 	}
+	FVector CellToWorld(int32 X, int32 Y, const FVector& Origin) const;
+	bool WorldToCell(const FVector& WorldPos, const FVector& Origin, int32& OutX, int32& OutY) const;
+
+	void MarkObstacles(UWorld* World, const FVector& Origin, float TraceHeight, AActor* ActorToIgnore);
 };
