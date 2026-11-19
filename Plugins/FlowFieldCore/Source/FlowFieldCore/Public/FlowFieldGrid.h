@@ -16,6 +16,8 @@ struct FlowFieldCell {
 	int32 Integration = MAX_uint16;
 	UPROPERTY()
 	FVector2D FlowVector = FVector2D::ZeroVector;
+	UPROPERTY()
+	float Height = 0.f;
 };
 
 class UWorld;
