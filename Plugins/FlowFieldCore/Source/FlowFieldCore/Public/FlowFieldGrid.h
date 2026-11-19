@@ -28,6 +28,8 @@ public:
 	int32 GridWidth = 0;
 	int32 GridHeight = 0;
 	float CellSize = 100.f;
+	float WalkableFloorZ = 0.7;
+	int32 MaxSlopeCost = 10;
 	
 	void GenerateGrid();
 

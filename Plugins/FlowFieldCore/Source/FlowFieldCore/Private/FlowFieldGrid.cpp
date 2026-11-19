@@ -41,10 +41,16 @@ void FlowFieldGrid::MarkObstacles(UWorld* World, const FVector& Origin, float Tr
 			FVector End = Center - FVector(0.f, 0.f, TraceHeight);
 			bool HitCheck = World->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, CollisionParams);
 			if (HitCheck) {
-				Cells[ToIndex(X, Y)].CellCost = 255;
+				if (Hit.ImpactNormal.Z <= WalkableFloorZ) {
+					Cells[ToIndex(X, Y)].CellCost = 255;
+				}
+				else {
+					float Threshold = (Hit.ImpactNormal.Z - WalkableFloorZ) / (1.f - WalkableFloorZ);
+					Cells[ToIndex(X, Y)].CellCost = FMath::RoundToInt(FMath::Lerp((float)MaxSlopeCost, 1.f, Threshold));
+				}
 			}
 			else {
-				Cells[ToIndex(X, Y)].CellCost = 1;
+				Cells[ToIndex(X, Y)].CellCost = 255;
 			}
 		}
 	}
