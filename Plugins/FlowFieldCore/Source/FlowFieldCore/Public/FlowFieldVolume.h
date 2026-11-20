@@ -27,6 +27,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "FlowField")
 	float TraceHeight = 500.f;
 	UPROPERTY(EditAnywhere, Category = "FlowField")
+	FIntPoint Goal = FIntPoint(0, 0);
+	UPROPERTY(EditAnywhere, Category = "FlowField")
 	bool bDebugDraw = true;
 
 	FlowFieldGrid Grid;
@@ -36,5 +38,4 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-	virtual void OnConstruction(const FTransform& Transform) override;
 };

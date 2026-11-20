@@ -34,6 +34,11 @@ public:
 	int32 MaxSlopeCost = 10;
 	
 	void GenerateGrid();
+	void BuildIntegrationField(FIntPoint Goal);
+
+	bool IsInBounds(int32 X, int32 Y) const {
+		return X >= 0 && X < GridWidth && Y >= 0 && Y < GridHeight;
+	}
 
 	int32 ToIndex(int32 X, int32 Y) const {
 		return Y * GridWidth + X;
