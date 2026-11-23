@@ -27,7 +27,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "FlowField")
 	float TraceHeight = 500.f;
 	UPROPERTY(EditAnywhere, Category = "FlowField")
-	FIntPoint Goal = FIntPoint(0, 0);
+	FIntPoint Goal = FIntPoint(32, 32); // 32 is temporary for testing
+	UPROPERTY(EditAnywhere, Category = "FlowField")
+	AActor* GoalActor;
+	UPROPERTY(EditAnywhere, Category = "FlowField")
+	float RebuildInterval = 0.2f;
 	UPROPERTY(EditAnywhere, Category = "FlowField")
 	bool bDebugDraw = true;
 
@@ -35,7 +39,16 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void Generate();
+	UFUNCTION(BlueprintCallable)
+	void SetGoal(FIntPoint NewGoal);
+
+	AFlowFieldVolume();
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
+
+private:
+	float TimeSinceRebuild = 0.f;
+	void DrawFlowArrows();
 };

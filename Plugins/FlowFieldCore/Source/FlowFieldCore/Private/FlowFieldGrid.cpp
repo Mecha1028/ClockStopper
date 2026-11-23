@@ -13,7 +13,6 @@ static const FIntPoint NeighbourOffsets[8] = {
 	FIntPoint(1, 1)
 };
 
-
 void FlowFieldGrid::GenerateGrid() {
 	Cells.SetNum(GridWidth * GridHeight);
 	for (FlowFieldCell& Cell : Cells) {
@@ -130,7 +129,84 @@ void FlowFieldGrid::BuildIntegrationField(FIntPoint Goal) {
 
 			int32 NewInt = Cells[CurrentIndex].Integration + StepCost;
 
-			//Needs finishing
+			int32 NeighbourIndex = ToIndex(NeighbourX, NeighbourY);
+
+			if (NewInt < Cells[NeighbourIndex].Integration) {
+				Cells[NeighbourIndex].Integration = (uint16)NewInt;
+				Queue.HeapPush(TPair<uint16, int32>((uint16)NewInt, NeighbourIndex));
+			}
+		}
+	}
+}
+
+bool FlowFieldGrid::GetNeighbourIntegration(int32 X, int32 Y, uint16& OutInt) const {
+	if (!IsInBounds(X, Y)) {
+		return false;
+	}
+
+	const FlowFieldCell& CurrentCell = Cells[ToIndex(X, Y)];
+	if (CurrentCell.CellCost == 255) {
+		return false;
+	}
+
+	OutInt = CurrentCell.Integration;
+	return true;
+}
+
+void FlowFieldGrid::BuildFlowField(FIntPoint Goal) {
+	for (int32 Y = 0; Y < GridHeight; Y++) {
+		for (int32 X = 0; X < GridWidth; X++) {
+			const FlowFieldCell& CurrentCell = Cells[ToIndex(X, Y)];
+			if (CurrentCell.CellCost == 255) {
+				continue;
+			}
+			if (CurrentCell.Integration == MAX_uint16) {
+				continue;
+			}
+			if (X == Goal.X && Y == Goal.Y) {
+				Cells[ToIndex(X, Y)].FlowVector = FVector2D::ZeroVector;
+				continue;
+			}
+
+			uint16 IntEast = 0;
+			uint16 IntWest = 0;
+			uint16 IntNorth = 0;
+			uint16 IntSouth = 0;
+			bool bEast = GetNeighbourIntegration(X + 1, Y, IntEast);
+			bool bWest = GetNeighbourIntegration(X - 1, Y, IntWest);
+			bool bNorth = GetNeighbourIntegration(X, Y + 1, IntNorth);
+			bool bSouth = GetNeighbourIntegration(X, Y - 1, IntSouth);
+
+			int32 DirectionX = 0;
+			int32 DirectionY = 0;
+
+			if (bEast && bWest) {
+				DirectionX = (int32)IntEast - (int32)IntWest;
+			}
+			else if (bEast) {
+				DirectionX = (int32)IntEast - (int32)CurrentCell.Integration;
+			}
+			else if (bWest) {
+				DirectionX = (int32)CurrentCell.Integration - (int32)IntWest;
+			}
+			else {
+				DirectionX = 0;
+			}
+			if (bNorth && bSouth) {
+				DirectionY = (int32)IntNorth - (int32)IntSouth;
+			}
+			else if (bNorth) {
+				DirectionY = (int32)IntNorth - (int32)CurrentCell.Integration;
+			}
+			else if (bSouth) {
+				DirectionY = (int32)CurrentCell.Integration - (int32)IntSouth;
+			}
+			else {
+				DirectionY = 0;
+			}
+
+			FVector2D Flow(-(double)DirectionX, -(double)DirectionY);
+			Cells[ToIndex(X,Y)].FlowVector = Flow.GetSafeNormal();
 		}
 	}
 }
