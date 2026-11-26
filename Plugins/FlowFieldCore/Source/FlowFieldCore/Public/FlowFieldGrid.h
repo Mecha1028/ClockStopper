@@ -32,6 +32,10 @@ public:
 	float CellSize = 100.f;
 	float WalkableFloorZ = 0.7;
 	int32 MaxSlopeCost = 10;
+	float GridFloorZ = 0.f;
+	float AgentHeight = 180.f;
+	float GroundProbeUp = 100.f;
+	float GroundProbeDown = 300.f;
 	
 	void GenerateGrid();
 	bool GetNeighbourIntegration(int32 X, int32 Y, uint16& OutInt) const;
@@ -59,5 +63,22 @@ public:
 	FVector CellToWorld(int32 X, int32 Y, const FVector& Origin) const;
 	bool WorldToCell(const FVector& WorldPos, const FVector& Origin, int32& OutX, int32& OutY) const;
 
-	void MarkObstacles(UWorld* World, const FVector& Origin, float TraceHeight, AActor* ActorToIgnore);
+	void MarkObstacles(UWorld* World, const FVector& Origin, AActor* ActorToIgnore);
+
+	bool IsCellWalkable(int32 X, int32 Y) const {
+		return IsInBounds(X, Y) && Cells[ToIndex(X, Y)].CellCost != 255;
+	}
+
+	bool IsWorldPositionWalkable(const FVector& WorldPosition, const FVector& Origin) const {
+		int32 X, Y;
+		return WorldToCell(WorldPosition, Origin, X, Y) && IsCellWalkable(X, Y);
+	}
+
+	float GetHeightAtWorldPosition(const FVector& WorldPosition, const FVector& Origin) const {
+		int32 X, Y;
+		if (!WorldToCell(WorldPosition, Origin, X, Y)) {
+			return Origin.Z;
+		}
+		return Cells[ToIndex(X, Y)].Height;
+	}
 };

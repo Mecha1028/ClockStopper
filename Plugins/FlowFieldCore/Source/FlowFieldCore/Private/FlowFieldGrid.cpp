@@ -37,50 +37,47 @@ bool FlowFieldGrid::WorldToCell(const FVector& WorldPos, const FVector& Origin, 
 	return BoundsCheck;
 }
 
-void FlowFieldGrid::MarkObstacles(UWorld* World, const FVector& Origin, float TraceHeight, AActor* ActorToIgnore) {
+void FlowFieldGrid::MarkObstacles(UWorld* World, const FVector& Origin, AActor* ActorToIgnore) {
 	if (!World) {
 		return;
 	}
-
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.bTraceComplex = false;
 	CollisionParams.AddIgnoredActor(ActorToIgnore);
+	float FootprintHalf = CellSize * 0.5f;
+	float BoxHalfHeight = AgentHeight * 0.5f;
+
 	for (int32 Y = 0; Y < GridHeight; Y++) {
 		for (int32 X = 0; X < GridWidth; X++) {
 			FVector Center = CellToWorld(X, Y, Origin);
-			FVector Start = Center + FVector(0.f, 0.f, TraceHeight);
-			FVector End = Center - FVector(0.f, 0.f, TraceHeight);
+			FVector Start = FVector(Center.X, Center.Y, GridFloorZ + GroundProbeUp);
+			FVector End = FVector(Center.X, Center.Y, GridFloorZ - GroundProbeDown);
 
-			TArray<FHitResult> Hits;
-			World->LineTraceMultiByChannel(Hits, Start, End, ECC_WorldStatic, CollisionParams);
-			FHitResult ValidHit;
-			bool bFound = false;
-			float BestDist = FLT_MAX;
-			for (const FHitResult& Hit : Hits) {
-				if (Hit.ImpactNormal.Z >= 0.f) {
-					float Dist = FMath::Abs(Hit.ImpactPoint.Z - Origin.Z);
-					if (Dist < BestDist) {
-						BestDist = Dist;
-						ValidHit = Hit;
-						bFound = true;
+			FHitResult Hit;
+			bool bHit = World->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, CollisionParams);
+			
+			const int32 Index = ToIndex(X, Y);
+			if (bHit) {
+				if (Hit.ImpactNormal.Z <= WalkableFloorZ) {
+					Cells[Index].CellCost = 255;
+					Cells[Index].Height = Hit.ImpactPoint.Z;
+				}
+				else {
+					Cells[Index].Height = Hit.ImpactPoint.Z;
+					float Threshold = (Hit.ImpactNormal.Z - WalkableFloorZ) / (1.f - WalkableFloorZ);
+					Cells[Index].CellCost = FMath::RoundToInt(FMath::Lerp((float)MaxSlopeCost, 1.f, Threshold));
+					//FVector BoxCenter(Center.X, Center.Y, Cells[Index].Height + BoxHalfHeight);
+					FVector BoxCenter(Center.X, Center.Y, Cells[Index].Height + 1.f + BoxHalfHeight);
+					FCollisionShape Box = FCollisionShape::MakeBox(FVector(FootprintHalf, FootprintHalf, BoxHalfHeight));
+					bool bBlocked = World->OverlapBlockingTestByChannel(BoxCenter, FQuat::Identity, ECC_WorldStatic, Box, CollisionParams);
+					if (bBlocked) {
+						Cells[Index].CellCost = 255;
 					}
 				}
 			}
-			
-			if (bFound) {
-				if (ValidHit.ImpactNormal.Z <= WalkableFloorZ) {
-					Cells[ToIndex(X, Y)].CellCost = 255;
-					Cells[ToIndex(X, Y)].Height = ValidHit.ImpactPoint.Z;
-				}
-				else {
-					Cells[ToIndex(X, Y)].Height = ValidHit.ImpactPoint.Z;
-					float Threshold = (ValidHit.ImpactNormal.Z - WalkableFloorZ) / (1.f - WalkableFloorZ);
-					Cells[ToIndex(X, Y)].CellCost = FMath::RoundToInt(FMath::Lerp((float)MaxSlopeCost, 1.f, Threshold));
-				}
-			}
 			else {
-				Cells[ToIndex(X, Y)].CellCost = 255;
-				Cells[ToIndex(X, Y)].Height = Origin.Z;
+				Cells[Index].CellCost = 255;
+				Cells[Index].Height = GridFloorZ;
 			}
 		}
 	}
@@ -189,9 +186,6 @@ void FlowFieldGrid::BuildFlowField(FIntPoint Goal) {
 			else if (bWest) {
 				DirectionX = (int32)CurrentCell.Integration - (int32)IntWest;
 			}
-			else {
-				DirectionX = 0;
-			}
 			if (bNorth && bSouth) {
 				DirectionY = (int32)IntNorth - (int32)IntSouth;
 			}
@@ -201,8 +195,25 @@ void FlowFieldGrid::BuildFlowField(FIntPoint Goal) {
 			else if (bSouth) {
 				DirectionY = (int32)CurrentCell.Integration - (int32)IntSouth;
 			}
-			else {
-				DirectionY = 0;
+
+			if (DirectionX != 0 && DirectionY != 0) {
+				int32 StepX = FMath::Sign(DirectionX);
+				int32 StepY = FMath::Sign(DirectionY);
+				int32 MidX = X - StepX;
+				int32 MidY = Y - StepY;
+				bool bMidXWalkable = IsCellWalkable(MidX, Y);
+				bool bMidYWalkable = IsCellWalkable(X, MidY);
+
+				if (!bMidXWalkable && !bMidYWalkable) {
+					DirectionX = 0;
+					DirectionY = 0;
+				}
+				else if (!bMidXWalkable && bMidYWalkable) {
+					DirectionX = 0;
+				}
+				else if (bMidXWalkable && !bMidYWalkable) {
+					DirectionY = 0;
+				}
 			}
 
 			FVector2D Flow(-(double)DirectionX, -(double)DirectionY);

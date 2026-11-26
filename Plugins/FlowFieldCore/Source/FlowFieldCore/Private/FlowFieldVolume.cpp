@@ -11,8 +11,12 @@ void AFlowFieldVolume::Generate() {
 	Grid.CellSize = CellSize;
 	Grid.WalkableFloorZ = WalkableFloorZ;
 	Grid.MaxSlopeCost = MaxSlopeCost;
+	Grid.GridFloorZ = GridFloorZ;
+	Grid.AgentHeight = AgentHeight;
+	Grid.GroundProbeUp = GroundProbeUp;
+	Grid.GroundProbeDown = GroundProbeDown;
 	Grid.GenerateGrid();
-	Grid.MarkObstacles(GetWorld(), GetActorLocation(), TraceHeight, this);
+	Grid.MarkObstacles(GetWorld(), GetActorLocation(), this);
 	Grid.BuildIntegrationField(Goal);
 	Grid.BuildFlowField(Goal);
 	DrawFlowArrows();

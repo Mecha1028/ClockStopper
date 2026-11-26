@@ -7,6 +7,7 @@ AFlowFieldAgentManager::AFlowFieldAgentManager() {
 	PrimaryActorTick.bCanEverTick = true;
 	AgentInstances = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("AgentInstances"));
 	RootComponent = AgentInstances;
+	AgentInstances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AFlowFieldAgentManager::BeginPlay() {
@@ -31,10 +32,11 @@ void AFlowFieldAgentManager::SpawnAgents() {
 	AgentInstances->ClearInstances();
 	Agents.Empty();
 	AgentInstances->SetStaticMesh(AgentMesh);
+	AgentInstances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Agents.Reserve(AgentCount);
 
 	for (int32 i = 0; i < AgentCount; i++) {
-		// Temporary Random Spawning, probably will change later
+		// Temporary Random Spawning, will change later
 		int32 RandomX = FMath::RandRange(0, Volume->Grid.GridWidth - 1);
 		int32 RandomY = FMath::RandRange(0, Volume->Grid.GridHeight - 1);
 		const FlowFieldCell& Cell = Volume->Grid.Cells[Volume->Grid.ToIndex(RandomX, RandomY)];
@@ -101,8 +103,33 @@ void AFlowFieldAgentManager::Tick(float DeltaTime) {
 			continue;
 		}
 
-		Agents[i].Position += FVector(Sampled.X, Sampled.Y, 0.f) * Agents[i].Speed * DeltaTime;
-		Agents[i].Position.Z = Volume->Grid.Cells[Volume->Grid.ToIndex(CellX, CellY)].Height + 50.f;
+		FVector ProposedPosition = Agents[i].Position + FVector(Sampled.X, Sampled.Y, 0.f) * Agents[i].Speed * DeltaTime;
+		FVector StartPosition = Agents[i].Position;
+		if (Volume->Grid.IsWorldPositionWalkable(ProposedPosition,Origin)) {
+			Agents[i].Position = ProposedPosition;
+		}
+		else {
+			FVector TryX = Agents[i].Position;
+			TryX.X = ProposedPosition.X;
+
+			if (Volume->Grid.IsWorldPositionWalkable(TryX, Origin)) {
+				Agents[i].Position.X = ProposedPosition.X;
+			}
+
+			FVector TryY = Agents[i].Position;
+			TryY.Y = ProposedPosition.Y;
+			if (Volume->Grid.IsWorldPositionWalkable(TryY, Origin)) {
+				Agents[i].Position.Y = ProposedPosition.Y;
+			}
+		}
+		if (!Agents[i].Position.FVector::Equals(StartPosition, 0.01)) {
+			FVector PushDirection(-Sampled.X,-Sampled.Y,0.f);
+			FVector PushPosition = Agents[i].Position + PushDirection * Agents[i].Speed * DeltaTime * 0.5f;
+			if (Volume->Grid.IsWorldPositionWalkable(PushPosition, Origin)) {
+				Agents[i].Position = PushPosition;
+			}
+		}
+		Agents[i].Position.Z = Volume->Grid.GetHeightAtWorldPosition(Agents[i].Position, Origin) + 50.f;
 
 		FTransform Transform(FRotator::ZeroRotator, Agents[i].Position, FVector(1.f));
 		AgentInstances->UpdateInstanceTransform(i, Transform, true, false, true);

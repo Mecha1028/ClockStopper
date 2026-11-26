@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "FlowFieldVolume.h"
 #include "FlowFieldAgentManager.generated.h"
 
 /**
